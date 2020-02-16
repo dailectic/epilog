@@ -1,0 +1,29 @@
+cabal-version: 2.2
+name: epilog
+homepage: https://github.com/daig/epilog#readme
+version: 0.1.0.0
+category: Language
+synopsis: Prolog syntax parsing and translation
+description: Prolog syntax parsing and translation
+stability: cursed
+bug-reports: https://github.com/daig/epilog/issues
+author: Dai
+maintainer: daig@sodality.cc
+copyright: 2018 Sodality
+license: MIT
+
+extra-source-files:
+  README.md
+  CHANGELOG.md
+
+source-repository head
+  type: git
+  location: https://github.com/daig/epilog
+
+common x
+  default-language: Haskell2010
+  default-extensions: AllowAmbiguousTypes, BangPatterns, BinaryLiterals, ConstraintKinds, DataKinds, DefaultSignatures, DeriveAnyClass, DeriveDataTypeable, DeriveGeneric, DeriveLift, DerivingStrategies, EmptyCase, FlexibleContexts, FlexibleInstances, FunctionalDependencies, GADTs, GeneralizedNewtypeDeriving, InstanceSigs, LambdaCase, MultiWayIf, NamedFieldPuns, NamedWildCards, NegativeLiterals, NumDecimals, OverloadedLabels, OverloadedStrings, PartialTypeSignatures, PatternSynonyms, PolyKinds, RankNTypes, RecordWildCards, RecursiveDo, RoleAnnotations, ScopedTypeVariables, StandaloneDeriving, StrictData, TupleSections, TypeApplications, TypeFamilyDependencies, TypeOperators, ViewPatterns, ImpredicativeTypes, QuantifiedConstraints, NumericUnderscores, BlockArguments, DerivingVia
+library
+  import: x
+  exposed-modules: Lib, Syntax, Parser, Gen
+  build-depends: base, syb, parsec, QuickCheck
