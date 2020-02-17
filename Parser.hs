@@ -1,3 +1,4 @@
+
 module Parser
    ( consult, consultString, parseQuery
    , program, whitespace, comment, clause, terms, term, bottom, vname
@@ -9,15 +10,20 @@ import qualified Text.Parsec.Expr as Parsec
 import qualified Text.Parsec.Token as P
 import Text.Parsec.Language (emptyDef)
 import Control.Applicative ((<$>),(<*>),(<$),(<*))
+import Control.Exception (Exception,throwIO)
 
 import Syntax
 
 deriving via DisplayShow ParseError instance Display ParseError
 
-consult = fmap consultString . readFile
+instance Exception ParseError
+-- | Read a program from a file. Throws 'ParseError'
+consult :: FilePath -> IO Program
+consult fp = either throwIO pure . consultString =<< readFile fp
 
+-- | Read a program from a string
 consultString :: String -> Either ParseError Program
-consultString = parse (whitespace >> program <* eof) "(input)"
+consultString = parse (do whitespace; p <- program; eof; return p) "(input)"
 
 parseQuery = parse (whitespace >> terms <* eof) "(query)"
 
@@ -46,7 +52,7 @@ clause = do t <- struct <* whitespace
 
       translate ((Struct aa@(Atom a) ts), rhs) =
          let lhs' = Struct aa (arguments ts (head vars) (last vars))
-             vars = map (var.("d_"++).(a++).show) [0..length rhs] -- We explicitly choose otherwise invalid variable names
+             vars = map (Var0.("d_"++).(a++).show) [0..length rhs] -- We explicitly choose otherwise invalid variable names
              rhs' = zipWith3 translate' rhs vars (tail vars)
          in Clause lhs' rhs'
 
@@ -77,7 +83,7 @@ bottom = variable
       <|> struct
       <|> list
       <|> stringLiteral
-      <|> cut <$ char '!'
+      <|> Cut 0 <$ char '!'
       <|> Struct "{}" <$> between (charWs '{') (char '}') terms
       <|> between (charWs '(') (char ')') term
 
