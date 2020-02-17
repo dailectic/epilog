@@ -1,10 +1,8 @@
 module Syntax
    ( Term(..,Var0)
-   , Atom(..)
    , Clause(..), rhs
-   , VariableName(..), Atom, Goal, Program
+   , VariableName(..), Atom(..), Goal, Program
    , cons, nil, foldr_pl
-   , arguments -- FIXME Should not be exposed
    , hierarchy
    , Operator(..), Assoc(..)
    , Display(..), DisplayShow(..),ShowDisplay(..)
@@ -30,6 +28,8 @@ pattern Var0 a = Var (VariableName 0 a)
 data Clause = Clause   { lhs :: Term, rhs_ ::           [Goal] }
             | ClauseFn { lhs :: Term, fn   :: [Term] -> [Goal] }
       deriving (Data, Typeable,Generic)
+-- | Extract the RHS function from a clause
+rhs :: Clause -> [Term] -> [Goal]
 rhs (Clause   _ rhs) = const rhs
 rhs (ClauseFn _ fn ) = fn
 instance Show Clause where
@@ -48,28 +48,18 @@ type Program      = [Clause]
 
 instance Ord Term where
    (<=) = wildcards <=! variables <=! atoms <=! compound_terms <=! error "incomparable"
+     where wildcards = \case {Wildcard -> Just (); _ -> Nothing}
+           variables = \case {Var v    -> Just v; _  -> Nothing}
+           atoms = \case {Struct a [] -> Just [a]; _ -> Nothing}
+           compound_terms = \case {Struct a ts -> Just (length ts, a, ts); _ -> Nothing}
+           numbers   = \case Struct (Atom (reads @Integer -> [(n,"")])) [] -> Just n
+                             _ -> Nothing
 
 infixr 4 <=!
 (q <=! _) (q->Just l) (q->Just r) = l <= r
 (q <=! _) (q->Just _) _ = True
 (q <=! _) _ (q->Just _) = False
 (_ <=! c) x y = c x y
-
-wildcards Wildcard = Just ()
-wildcards _        = Nothing
-
-variables (Var v) = Just v
-variables _       = Nothing
-
-numbers (Struct (reads . unAtom -> [(n :: Integer,"")]) []) = Just n
-numbers _                                        = Nothing
-
-atoms (Struct a []) = Just [a]
-atoms _             = Nothing
-
-compound_terms (Struct a ts) = Just (length ts, a, ts)
-compound_terms _             = Nothing
-
 
 class Display a where display :: a -> String
 newtype DisplayShow a = DisplayShow a
@@ -85,7 +75,8 @@ deriving via DisplayShow [ShowDisplay a]
 
 instance Display Term where display = prettyPrint False 0
 
-
+-- | Display a term, optionally surrounding it in parentheses and specified nesting depth
+prettyPrint :: Bool -> Int -> Term -> String
 prettyPrint True _ t@(Struct "," [_,_]) =
    "(" ++ prettyPrint False 0 t ++  ")"
 
@@ -115,15 +106,18 @@ prettyPrint _ _ (Var v)         = show v
 prettyPrint _ _ Wildcard        = "_"
 prettyPrint _ _ (Cut _)         = "!"
 
+-- | Add preceeding and trailing spaces to words, or trailing commas
+spaced :: String -> String
 spaced s = spaceIf (isLetter h) ++ s ++ spaceIf (isLetter l || ',' == l)
  where h = head s; l = last s
        spaceIf p = if p then " " else ""
 
+-- | Enclose a string in parents if the predicate holds
 parensIf :: Bool -> String -> String
-parensIf True  s = "(" ++ s ++")"
-parensIf False s = s
+parensIf p s = if p then "(" ++ s ++")" else s
 
 
+-- | Lookup table for Operators with precidence
 operatorTable :: [(Atom, (Int,Operator))]
 operatorTable = concat $ zipWith (map . g) [1..] $ hierarchy False
  where g p op@(InfixOp _ name) = (Atom name,(p,op))
@@ -138,44 +132,34 @@ instance Display Clause where
    display (Clause   lhs rhs) = display $ display lhs ++ " :- " ++ intercalate ", " (map display rhs)
    display (ClauseFn lhs _  ) = display $ display lhs ++ " :- " ++ "<Haskell function>"
 
+-- | Fold over a list of terms
+foldr_pl :: (Term -> t -> t) -> t -> Term -> t
+foldr_pl f t0 = \case Struct "." [first,rest] -> f first $ foldr_pl f t0 rest
+                      Struct "[]" []          ->  t0
+                      t                       -> error $ "foldr_pl: Term " ++ show t ++ " is not a list"
 
-
-
-foldr_pl f k (Struct "." [h,t]) = f h (foldr_pl f k t)
-foldr_pl _ k (Struct "[]" [])   = k
-
+-- | Concatenate Terms in a list
+cons :: Term -> Term -> Term
 cons t1 t2 = Struct "."  [t1,t2]
+-- | An empty list of Terms
+nil :: Term
 nil        = Struct "[]" []
 
-data Operator = PrefixOp String
-              | InfixOp Assoc String
-data Assoc = AssocLeft
-           | AssocRight
+data Operator = PrefixOp String | InfixOp Assoc String
+data Assoc = AssocLeft | AssocRight
 
+-- | heirarchy of operator precidence. Descending lists bind more tightly
 hierarchy :: Bool -> [[Operator]]
 hierarchy ignoreConjunction =
-   --[ [ InfixOp NonAssoc "-->", InfixOp NonAssoc ":-" ]
    [ [ infixR ";" ] ] ++
    (if ignoreConjunction then [] else [ [ infixR "," ] ])  ++
-   [ [ prefix "\\+" ]
+   [ [ PrefixOp "\\+" ]
    , map infixL ["<", "=..", "=:=", "=<", "=", ">=", ">", "\\=", "is", "==", "@<", "@=<", "@>=", "@>"]
    , map infixL ["+", "-", "\\"]
    , [ infixL "*"]
    , [ infixL "mod" ]
    , [ infixL "div" ]
-   , [ prefix "-" ]
-   , [ prefix "$" ] -- used for quasi quotation
+   , [ PrefixOp "-" ]
+   , [ PrefixOp "$" ] -- used for quasi quotation
    ]
- where
-   prefix = PrefixOp
-   infixL = InfixOp AssocLeft
-   infixR = InfixOp AssocRight
-
-
---infix 6 \\
---x \\ y = Struct "\\" [x,y]
-
-arguments ts xs ds = ts ++ [ xs, ds ]
--- arguments ts xs ds = [ xs \\ ds ] ++ ts
-
-
+ where infixL = InfixOp AssocLeft; infixR = InfixOp AssocRight
