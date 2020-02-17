@@ -28,6 +28,8 @@ pattern Var0 a = Var (VariableName 0 a)
 data Clause = Clause   { lhs :: Term, rhs_ ::           [Goal] }
             | ClauseFn { lhs :: Term, fn   :: [Term] -> [Goal] }
       deriving (Data, Typeable,Generic)
+-- | Extract the RHS function from a clause
+rhs :: Clause -> [Term] -> [Goal]
 rhs (Clause   _ rhs) = const rhs
 rhs (ClauseFn _ fn ) = fn
 instance Show Clause where
