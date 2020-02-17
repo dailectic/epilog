@@ -25,5 +25,5 @@ common x
   default-extensions: AllowAmbiguousTypes, BangPatterns, BinaryLiterals, ConstraintKinds, DataKinds, DefaultSignatures, DeriveAnyClass, DeriveDataTypeable, DeriveGeneric, DeriveLift, DerivingStrategies, EmptyCase, FlexibleContexts, FlexibleInstances, FunctionalDependencies, GADTs, GeneralizedNewtypeDeriving, InstanceSigs, LambdaCase, MultiWayIf, NamedFieldPuns, NamedWildCards, NegativeLiterals, NumDecimals, OverloadedLabels, OverloadedStrings, PartialTypeSignatures, PatternSynonyms, PolyKinds, RankNTypes, RecordWildCards, RecursiveDo, RoleAnnotations, ScopedTypeVariables, StandaloneDeriving, StrictData, TupleSections, TypeApplications, TypeFamilyDependencies, TypeOperators, ViewPatterns, ImpredicativeTypes, QuantifiedConstraints, NumericUnderscores, BlockArguments, DerivingVia
 library
   import: x
-  exposed-modules: Lib, Syntax, Parser, Gen
+  exposed-modules: Syntax, Parser, Gen
   build-depends: base, syb, parsec, QuickCheck

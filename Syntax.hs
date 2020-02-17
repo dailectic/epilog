@@ -1,5 +1,5 @@
 module Syntax
-   ( Term(..), var, cut
+   ( Term(..,Var0)
    , Atom(..)
    , Clause(..), rhs
    , VariableName(..), Atom, Goal, Program
@@ -18,17 +18,17 @@ import GHC.Generics
 import Data.String (IsString(..))
 
 
-data Term = Struct Atom [Term]
-          | Var VariableName
-          | Wildcard
-          | Cut Int
-      deriving (Eq, Data, Typeable,Show, Generic)
+data Term = Struct Atom [Term] -- ^ Atomic application "foo(x,y,_,Z)"
+          | Var VariableName -- ^ Named variable "X"
+          | Wildcard -- ^ Unnamed variable "_"
+          | Cut Int -- ^ Cut with backtracking limit (usually 0) "!" 
+      deriving (Eq, Data, Typeable,Show)
 
-var = Var . VariableName 0
-cut = Cut 0
+-- | Create a named variable
+pattern Var0 a = Var (VariableName 0 a)
 
-data Clause = Clause { lhs :: Term, rhs_ :: [Goal] }
-            | ClauseFn { lhs :: Term, fn :: [Term] -> [Goal] }
+data Clause = Clause   { lhs :: Term, rhs_ ::           [Goal] }
+            | ClauseFn { lhs :: Term, fn   :: [Term] -> [Goal] }
       deriving (Data, Typeable,Generic)
 rhs (Clause   _ rhs) = const rhs
 rhs (ClauseFn _ fn ) = fn
@@ -114,16 +114,10 @@ prettyPrint _ _ (Struct (Atom a) ts)   = a ++ "(" ++ intercalate ", " (map (pret
 prettyPrint _ _ (Var v)         = show v
 prettyPrint _ _ Wildcard        = "_"
 prettyPrint _ _ (Cut _)         = "!"
---prettyPrint _ _ ((==cut)->True) = "!"
---prettyPrint _ _ (Cut n)         = "!^" ++ show n
 
-
-spaced s = let h = head s
-               l = last s
-           in spaceIf (isLetter h) ++ s ++ spaceIf (isLetter l || ',' == l)
-
-spaceIf True  = " "
-spaceIf False = ""
+spaced s = spaceIf (isLetter h) ++ s ++ spaceIf (isLetter l || ',' == l)
+ where h = head s; l = last s
+       spaceIf p = if p then " " else ""
 
 parensIf :: Bool -> String -> String
 parensIf True  s = "(" ++ s ++")"
