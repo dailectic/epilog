@@ -1,3 +1,16 @@
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TupleSections #-}
 
 module Parser
    ( consult, consultString, parseQuery
@@ -68,14 +81,14 @@ clause = do t <- struct <* whitespace
          in Clause lhs' rhs'
 
       translate' :: Term -> Term -> Term -> Term
-      translate' t s s0 | isList t   = Struct "=" [ s, foldr_pl cons s0 t ]     -- Terminal
-      translate' t@(Struct "{}" ts) s s0 = foldr and (Struct "=" [ s, s0 ]) ts  -- Braced terms
+      translate' t s s0 | isList t   = Struct (Atom "=") [ s, foldr_pl cons s0 t ]     -- Terminal
+      translate' t@(Struct (Atom "{}") ts) s s0 = foldr and (Struct (Atom "=") [ s, s0 ]) ts  -- Braced terms
       translate' (Struct a ts)  s s0 = Struct a (arguments ts s s0)             -- Non-Terminal
 
-      and x y = Struct "," [x,y]
+      and x y = Struct (Atom ",") [x,y]
       
-      isList = \case Struct "." [_,_] -> True
-                     Struct "[]" []   -> True
+      isList = \case Struct (Atom ".") [_,_] -> True
+                     Struct (Atom "[]") []   -> True
                      _                -> False
 
       arguments :: [a] -> a -> a -> [a]
@@ -101,7 +114,7 @@ bottom = variable
       <|> list
       <|> stringLiteral
       <|> Cut 0 <$ char '!'
-      <|> Struct "{}" <$> between (charWs '{') (char '}') terms
+      <|> Struct (Atom "{}") <$> between (charWs '{') (char '}') terms
       <|> between (charWs '(') (char ')') term
 
 toParser (PrefixOp name)      = Prefix (reservedOp name >> return (\t -> Struct (Atom name) [t]))

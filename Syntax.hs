@@ -1,3 +1,16 @@
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module Syntax
    ( Term(..,Var0)
    , Clause(..), rhs
@@ -77,7 +90,7 @@ instance Display Term where display = prettyPrint False 0
 
 -- | Display a term, optionally surrounding it in parentheses and specified nesting depth
 prettyPrint :: Bool -> Int -> Term -> String
-prettyPrint True _ t@(Struct "," [_,_]) =
+prettyPrint True _ t@(Struct (Atom ",") [_,_]) =
    "(" ++ prettyPrint False 0 t ++  ")"
 
 prettyPrint f n (Struct (flip lookup operatorTable->Just (p,InfixOp assoc name)) [l,r]) =
@@ -89,15 +102,15 @@ prettyPrint f n (Struct (flip lookup operatorTable->Just (p,InfixOp assoc name))
 prettyPrint f n (Struct (flip lookup operatorTable->Just (p,PrefixOp name)) [r]) =
    parensIf (n >= p) $ name ++ prettyPrint f (p {- Non-associative -}) r
 
-prettyPrint _ _ t@(Struct "." [_,_]) =
+prettyPrint _ _ t@(Struct (Atom ".") [_,_]) =
    let (ts,rest) = g [] t in
       --case guard (isNil rest) >> sequence (map toChar ts) of
       --   Just str -> prettyPrint str
       --   Nothing  ->
             "[" ++ intercalate "," (map (prettyPrint True 0) ts) ++ (if isNil rest then "" else "|" ++ (prettyPrint True 0) rest) ++  "]"
-   where g ts (Struct "." [h,t]) = g (h:ts) t
+   where g ts (Struct (Atom ".") [h,t]) = g (h:ts) t
          g ts t = (reverse ts, t)
-         isNil (Struct "[]" []) = True
+         isNil (Struct (Atom "[]") []) = True
          isNil _                = False
 
 prettyPrint _ _ (Struct (Atom a) [])   = a
@@ -134,16 +147,16 @@ instance Display Clause where
 
 -- | Fold over a list of terms
 foldr_pl :: (Term -> t -> t) -> t -> Term -> t
-foldr_pl f t0 = \case Struct "." [first,rest] -> f first $ foldr_pl f t0 rest
-                      Struct "[]" []          ->  t0
+foldr_pl f t0 = \case Struct (Atom ".") [first,rest] -> f first $ foldr_pl f t0 rest
+                      Struct (Atom "[]") []          ->  t0
                       t                       -> error $ "foldr_pl: Term " ++ show t ++ " is not a list"
 
 -- | Concatenate Terms in a list
 cons :: Term -> Term -> Term
-cons t1 t2 = Struct "."  [t1,t2]
+cons t1 t2 = Struct (Atom ".")  [t1,t2]
 -- | An empty list of Terms
 nil :: Term
-nil        = Struct "[]" []
+nil        = Struct (Atom "[]") []
 
 data Operator = PrefixOp String | InfixOp Assoc String
 data Assoc = AssocLeft | AssocRight
